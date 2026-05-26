@@ -109,7 +109,7 @@ body::after{
 </div>
 
 <script>
-const OAUTH_URL = 'https://discord.com/oauth2/authorize?client_id=1508861252364140554&response_type=code&redirect_uri=https%3A%2F%2Flogin.healer.eu.org%2Fdiscord%2Fauth%2Findex.html&scope=guilds.members.read+identify+guilds';
+const OAUTH_URL = 'https://discord.com/oauth2/authorize?client_id=1508861252364140554&response_type=token&redirect_uri=https%3A%2F%2Flogin.healer.eu.org%2Fdiscord%2Fauth&scope=identify+guilds.members.read+guilds';
 
 const params = new URLSearchParams(window.location.search);
 if (params.has('req')) sessionStorage.setItem('authReq', params.get('req'));

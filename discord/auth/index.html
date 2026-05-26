@@ -142,7 +142,7 @@ body::after{
 
     <!-- IDLE -->
     <div class="state active" id="state-idle">
-      <a class="discord-btn" href="https://discord.com/oauth2/authorize?client_id=1508861252364140554&response_type=code&redirect_uri=https%3A%2F%2Flogin.healer.eu.org%2Fdiscord%2Fauth%2Findex.html&scope=guilds.members.read+identify+guilds">
+      <a class="discord-btn" href="https://discord.com/oauth2/authorize?client_id=1508861252364140554&response_type=token&redirect_uri=https%3A%2F%2Flogin.healer.eu.org%2Fdiscord%2Fauth&scope=identify+guilds.members.read+guilds">
         <svg class="discord-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
         </svg>
@@ -203,14 +203,8 @@ body::after{
 </div>
 
 <script>
-// ── Config ────────────────────────────────────────────────
-// Backend endpoint: POST { code, redirect_uri } → { access_token, token_type }
-const TOKEN_EXCHANGE_URL = '';
-
-const REDIRECT_URI      = 'https://login.healer.eu.org/discord/auth';
 const REQUIRED_GUILD_ID = '972722436971855933';
 
-// ── State machine ─────────────────────────────────────────
 const STATES = ['idle','loading','success','error','join'];
 function showState(s) {
   STATES.forEach(n => {
@@ -223,46 +217,24 @@ let deepLink         = '';
 let currentToken     = '';
 let currentTokenType = 'Bearer';
 
-// ── Boot ──────────────────────────────────────────────────
 window.addEventListener('load', async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const code      = urlParams.get('code');
-  const error     = urlParams.get('error');
+  // Token arrives in the URL hash from Discord's implicit flow
+  const hash   = window.location.hash.substring(1);
+  if (!hash) { showState('idle'); return; }
 
-  if (error) { showError('Discord returned: ' + (urlParams.get('error_description') || error)); return; }
-  if (!code)  { showState('idle'); return; }
+  const params = new URLSearchParams(hash);
+  currentToken     = params.get('access_token');
+  currentTokenType = params.get('token_type') || 'Bearer';
+
+  if (!currentToken) { showState('idle'); return; }
 
   showState('loading');
-  document.getElementById('load-text').textContent = 'Exchanging code…';
-
   try {
-    await exchangeCode(code);
+    await fetchProfile();
   } catch(e) {
-    showError(e.message || 'Failed during authentication');
+    showError(e.message || 'Failed to fetch Discord profile');
   }
 });
-
-async function exchangeCode(code) {
-  if (!TOKEN_EXCHANGE_URL) {
-    showError('TOKEN_EXCHANGE_URL is not configured.\nSet it to your backend endpoint in discord/auth/index.html.');
-    return;
-  }
-
-  const res = await fetch(TOKEN_EXCHANGE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, redirect_uri: REDIRECT_URI })
-  });
-
-  if (!res.ok) throw new Error(`Token exchange failed: ${res.status}`);
-  const data = await res.json();
-  if (!data.access_token) throw new Error('No access_token in exchange response');
-
-  currentToken     = data.access_token;
-  currentTokenType = data.token_type || 'Bearer';
-
-  await fetchProfile();
-}
 
 async function fetchProfile() {
   document.getElementById('load-text').textContent = 'Fetching your profile…';
@@ -332,7 +304,7 @@ function showError(msg) {
 
 function retry() {
   history.replaceState(null, '', window.location.pathname);
-  window.location.href = '/';
+  showState('idle');
 }
 </script>
 </body>
